@@ -1,3 +1,39 @@
+pub struct OutputBuffer<'a> {
+    buffer: &'a mut [u8],
+    position: usize,
+    length:   usize
+}
+
+impl<'a> OutputBuffer<'a> {
+    pub fn from_slice(slice: &'a mut [u8]) -> OutputBuffer<'a> {
+        let length = slice.len();
+        OutputBuffer {
+            buffer: slice,
+            position: 0,
+            length: length
+        }
+    }
+
+    pub fn from_vector(vec: &'a mut Vec<u8>) -> OutputBuffer<'a> {
+        let length = vec.len();
+
+        OutputBuffer {
+            buffer: &mut vec[..],
+            position: 0,
+            length: length
+        }
+    }
+
+    pub fn put_byte(&mut self, data: u8) {
+        if self.position == self.length {
+            panic!("trying to put a byte in a full buffer");
+        }
+
+        self.buffer[self.position] = data;
+        self.position = self.position + 1;
+    }
+}
+
 #[derive(Debug)]
 pub struct InputBuffer<'a> {
     data:     &'a [u8],
@@ -28,60 +64,6 @@ impl<'a> InputBuffer<'a> {
         self.length
     }
 }
-
-
-pub struct PacketParser<'a> {
-    buffer: InputBuffer<'a>
-}
-
-impl<'a> PacketParser<'a> {
-    pub fn from_bytes(data: &'a [u8]) -> PacketParser<'a> {
-        let buffer = InputBuffer::create(data);
-        PacketParser {
-            buffer: buffer
-        }
-    }
-
-    pub fn varint(&mut self) -> u64 {
-        let mut value : u64 = 0;
-        let mut idx = 0;
-        loop {
-            let current = self.buffer.read_byte() as u64;
-
-            let shift_by = if idx > 0 {
-                (7 as u64).pow(idx as u32)
-            } else {
-                0
-            };
-
-            value = value + ((current & 127) << shift_by);
-
-            if current < 128 {
-                break;
-            }
-
-            idx = idx + 1;
-        }
-
-        return value
-    }
-
-    pub fn string(&mut self) -> String {
-        let length = self.varint() as usize;
-        let mut buf = Vec::with_capacity(length);
-        while buf.len() < length {
-            let current = self.buffer.read_byte();
-            buf.push(current);
-        }
-
-        String::from_utf8(buf).unwrap()
-    }
-
-    pub fn u16(&mut self) -> u16 {
-        self.buffer.read_byte() as u16 * 256 + self.buffer.read_byte() as u16
-    }
-}
-
 
 #[test]
 fn test_input_buffer_create() {

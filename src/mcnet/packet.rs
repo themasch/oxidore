@@ -1,8 +1,9 @@
 use mcnet::utils::size_of_string;
 use mcnet::utils::size_of_varint;
-use mcnet::utils::write_varint;
-use mcnet::utils::write_string;
-use mcnet::input::PacketParser;
+use mcnet::input::InputBuffer;
+use mcnet::input::OutputBuffer;
+use mcnet::types::VarInt;
+use mcnet::field::PacketField;
 
 pub struct PacketInformation {
     pub length: u64,
@@ -32,12 +33,12 @@ pub struct ClientHandshake {
 
 impl Packet for ClientHandshake {
     fn unpack(data: &[u8]) -> ServerPacket {
-        let mut buffer = PacketParser::from_bytes(data);
+        let mut buffer = InputBuffer::create(data);
         ServerPacket::ClientHandshake(ClientHandshake {
-            protocol_version: buffer.varint(),
-            address: buffer.string(),
-            port: buffer.u16(),
-            next_state: buffer.varint()
+            protocol_version: PacketField::read_from(&mut buffer),
+            address:    PacketField::read_from(&mut buffer),
+            port:       PacketField::read_from(&mut buffer),
+            next_state: PacketField::read_from(&mut buffer)
         })
     }
 
@@ -49,22 +50,18 @@ impl Packet for ClientHandshake {
                         + 1; // packet id
 
         let size = length + size_of_varint(length as u64);
-        let mut buffer : Vec<u8> = vec![0; size];
+        let mut buffer_vec : Vec<u8> = vec![0; size];
         {
-            let mut buffer_slice = &mut buffer[..];
-
-            let mut idx = write_varint(length as u64, &mut buffer_slice);
-            buffer_slice[idx] = 0x00; // packet id
-            idx = idx + 1;
-            idx = idx + write_varint(self.protocol_version, &mut buffer_slice[idx..]);
-            idx = idx + write_string(&self.address, &mut buffer_slice[idx..]);
-            buffer_slice[idx] = (self.port >> 8) as u8;
-            buffer_slice[idx+1] = (self.port & 0xff) as u8;
-            idx = idx + 2;
-            write_varint(self.next_state, &mut buffer_slice[idx..]);
-
+            let mut buffer = OutputBuffer::from_vector(&mut buffer_vec);
+            (length as VarInt).write_to(&mut buffer);
+            (0x00 as u8).write_to(&mut buffer);
+            (self.protocol_version as VarInt).write_to(&mut buffer);
+            self.address.write_to(&mut buffer);
+            self.port.write_to(&mut buffer);
+            self.next_state.write_to(&mut buffer);
         }
-        return buffer;
+
+        return buffer_vec;
     }
 }
 
@@ -75,9 +72,9 @@ pub struct LoginStart {
 
 impl LoginStart {
     pub fn unpack(data: &[u8]) -> ServerPacket {
-        let mut buffer = PacketParser::from_bytes(data);
+        let mut buffer = InputBuffer::create(data);
         ServerPacket::LoginStart(LoginStart {
-            name: buffer.string()
+            name: PacketField::read_from(&mut buffer),
         })
     }
 }

@@ -1,6 +1,8 @@
 pub mod packet;
 pub mod utils;
 pub mod input;
+pub mod types;
+pub mod field;
 
 use std::net::TcpStream;
 use std::io::prelude::*;
