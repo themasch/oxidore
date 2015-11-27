@@ -48,10 +48,10 @@ impl Packet for ClientHandshake {
                         + size_of_varint(self.next_state)
                         + 1; // packet id
 
-        let mut buffer : Vec<u8> = Vec::with_capacity(length + size_of_varint(length as u64));
-        buffer.resize(length + size_of_varint(length as u64), 0);
+        let size = length + size_of_varint(length as u64);
+        let mut buffer : Vec<u8> = vec![0; size];
         {
-            let mut buffer_slice = buffer.as_mut_slice();
+            let mut buffer_slice = &mut buffer[..];
 
             let mut idx = write_varint(length as u64, &mut buffer_slice);
             buffer_slice[idx] = 0x00; // packet id
