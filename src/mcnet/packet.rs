@@ -25,10 +25,10 @@ pub enum ServerPacket {
 
 #[derive(Debug,PartialEq)]
 pub struct ClientHandshake {
-    pub protocol_version: u64,
+    pub protocol_version: VarInt,
     pub address: String,
     pub port: u16,
-    pub next_state:  u64
+    pub next_state:  VarInt
 }
 
 impl Packet for ClientHandshake {
@@ -44,18 +44,18 @@ impl Packet for ClientHandshake {
 
     fn pack(&self) -> Vec<u8> {
         let length : usize = size_of_string(&self.address)
-                        + size_of_varint(self.protocol_version)
+                        + self.protocol_version.byte_len()
                         + 2 // 16bits for port
-                        + size_of_varint(self.next_state)
+                        + self.next_state.byte_len()
                         + 1; // packet id
 
         let size = length + size_of_varint(length as u64);
         let mut buffer_vec : Vec<u8> = vec![0; size];
         {
             let mut buffer = OutputBuffer::from_vector(&mut buffer_vec);
-            (length as VarInt).write_to(&mut buffer);
+            VarInt::wrap(length as u32).write_to(&mut buffer);
             (0x00 as u8).write_to(&mut buffer);
-            (self.protocol_version as VarInt).write_to(&mut buffer);
+            self.protocol_version.write_to(&mut buffer);
             self.address.write_to(&mut buffer);
             self.port.write_to(&mut buffer);
             self.next_state.write_to(&mut buffer);
@@ -83,15 +83,16 @@ impl LoginStart {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mcnet::types::VarInt;
 
     #[test]
     fn pack_client_handshake() {
         let result = [15, 0, 27, 9, 49, 50, 55, 46, 48, 46, 48, 46, 49, 48, 57, 2];
         let hs = ClientHandshake {
-            protocol_version: 27,
+            protocol_version: VarInt::wrap(27),
             address: "127.0.0.1".to_string(),
             port: 12345,
-            next_state: 2
+            next_state: VarInt::wrap(2)
         };
 
         let buffer = hs.pack();
@@ -109,10 +110,10 @@ mod tests {
         let result = [ 26, 0, 27, 20, 109, 105, 110, 101, 99, 114, 97, 102, 116,
                        46, 103, 111, 111, 103, 108, 101, 46, 99, 111, 109, 0, 80, 2];
         let hs = ClientHandshake {
-            protocol_version: 27,
+            protocol_version: VarInt::wrap(27),
             address: "minecraft.google.com".to_string(),
             port: 80,
-            next_state: 2
+            next_state: VarInt::wrap(2)
         };
 
         let buffer = hs.pack();

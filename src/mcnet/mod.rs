@@ -85,7 +85,7 @@ impl<'a> Connection<'a> {
         println!("got {:?}", packet);
         match packet {
             ServerPacket::ClientHandshake(handshake) => {
-                match handshake.next_state {
+                match handshake.next_state.get_value() {
                     1 => {
                         self.state = ConnectionState::Status;
                         println!("new state: {:?}", self.state);
@@ -95,7 +95,7 @@ impl<'a> Connection<'a> {
                         println!("new state: {:?}", self.state);
                     }
                     _ => {
-                        panic!("unsupported state: {}", handshake.next_state);
+                        panic!("unsupported state: {:?}", handshake.next_state);
                     }
                 }
             },

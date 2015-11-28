@@ -30,7 +30,7 @@ impl<'a> PacketField<'a> for u16 {
 
 impl<'a> PacketField<'a> for VarInt {
     fn write_to(&self, mut buffer: &mut OutputBuffer) {
-        let mut val = *self;
+        let mut val = self.get_value();
         while val > 127 {
             let x = (val & 127) as u8 | 128;
             buffer.put_byte(x);
@@ -41,13 +41,13 @@ impl<'a> PacketField<'a> for VarInt {
     }
 
     fn read_from(buffer: &mut InputBuffer) -> VarInt {
-        let mut value : u64 = 0;
+        let mut value : u32 = 0;
         let mut idx = 0;
         loop {
-            let current = buffer.read_byte() as u64;
+            let current = buffer.read_byte() as u32;
 
             let shift_by = if idx > 0 {
-                (7 as u64).pow(idx as u32)
+                (7 as u32).pow(idx as u32)
             } else {
                 0
             };
@@ -61,13 +61,13 @@ impl<'a> PacketField<'a> for VarInt {
             idx = idx + 1;
         }
 
-        value
+        VarInt::wrap(value)
     }
 }
 
 impl<'a> PacketField<'a> for String {
     fn write_to(&self, mut buffer: &mut OutputBuffer) {
-        (self.len() as VarInt).write_to(&mut buffer);
+        VarInt::wrap(self.len() as u32).write_to(&mut buffer);
         let bytes = self.as_bytes();
         for i in 0..bytes.len() {
             buffer.put_byte(bytes[i]);
@@ -75,7 +75,8 @@ impl<'a> PacketField<'a> for String {
     }
 
     fn read_from(buffer: &mut InputBuffer) -> String {
-        let length : VarInt = PacketField::read_from(buffer);
+        let length_var : VarInt = PacketField::read_from(buffer);
+        let length = length_var.get_value();
         let mut buf = Vec::with_capacity(length as usize);
         while buf.len() < length as usize {
             let current = buffer.read_byte();
@@ -98,7 +99,7 @@ mod tests {
         let mut buffer_slice = [0u8; 5];
         {
             let mut buffer = OutputBuffer::from_slice(&mut buffer_slice);
-            (1 as VarInt).write_to(&mut buffer);
+            VarInt::wrap(1).write_to(&mut buffer);
         }
         assert_eq!([0x01, 0x00, 0x00, 0x00, 0x00], buffer_slice);
     }
@@ -108,7 +109,7 @@ mod tests {
         let mut buffer_slice = [0u8; 5];
         {
             let mut buffer = OutputBuffer::from_slice(&mut buffer_slice);
-            (10 as VarInt).write_to(&mut buffer);
+            VarInt::wrap(10).write_to(&mut buffer);
         }
         assert_eq!([0x0A, 0x00, 0x00, 0x00, 0x00], buffer_slice);
     }
@@ -118,7 +119,7 @@ mod tests {
         let mut buffer_slice = [0u8; 5];
         {
             let mut buffer = OutputBuffer::from_slice(&mut buffer_slice);
-            (100 as VarInt).write_to(&mut buffer);
+            VarInt::wrap(100).write_to(&mut buffer);
         }
         assert_eq!([100, 0x00, 0x00, 0x00, 0x00], buffer_slice);
     }
@@ -128,7 +129,7 @@ mod tests {
         let mut buffer_slice = [0u8; 5];
         {
             let mut buffer = OutputBuffer::from_slice(&mut buffer_slice);
-            (300 as VarInt).write_to(&mut buffer);
+            VarInt::wrap(300).write_to(&mut buffer);
         }
         assert_eq!([0xac, 0x02, 0x00, 0x00, 0x00], buffer_slice);
     }
