@@ -1,18 +1,20 @@
+#[macro_use]
 pub mod packet;
 pub mod utils;
 pub mod input;
 pub mod types;
 pub mod field;
+pub mod protocol;
 
 use std::net::TcpStream;
 use std::io::prelude::*;
 use mcnet::utils::read_packet_information;
 use mcnet::utils::size_of_varint;
-use mcnet::packet::ServerPacket;
 use mcnet::packet::PacketInformation;
-use mcnet::packet::LoginStart;
-use mcnet::packet::ClientHandshake;
-use mcnet::packet::Packet;
+use mcnet::protocol::LoginStart;
+use mcnet::protocol::ClientHandshake;
+use mcnet::protocol::McPacket;
+use mcnet::protocol::Packet;
 
 #[derive(Debug)]
 pub enum ConnectionState {
@@ -24,12 +26,12 @@ pub enum ConnectionState {
 
 
 trait PacketFactory {
-    fn unpack(info: PacketInformation, data: &[u8]) -> ServerPacket;
+    fn unpack(info: PacketInformation, data: &[u8]) -> Result<McPacket, ()>;
 }
 
 pub struct HandshakingPaketFactory;
 impl PacketFactory for HandshakingPaketFactory {
-    fn unpack(info: PacketInformation, data: &[u8]) -> ServerPacket {
+    fn unpack(info: PacketInformation, data: &[u8]) -> Result<McPacket, ()> {
         match info.id {
             0 => { // ClientHandshake
                 ClientHandshake::unpack(data)
@@ -42,7 +44,7 @@ impl PacketFactory for HandshakingPaketFactory {
 }
 pub struct LoginPaketFactory;
 impl PacketFactory for LoginPaketFactory {
-    fn unpack(info: PacketInformation, data: &[u8]) -> ServerPacket {
+    fn unpack(info: PacketInformation, data: &[u8]) -> Result<McPacket, ()> {
         match info.id {
             0 => { // LoginStart
                 LoginStart::unpack(data)
@@ -70,7 +72,7 @@ impl<'a> Connection<'a> {
         }
     }
 
-    pub fn read_packet(&self, info: PacketInformation, data: &[u8]) -> ServerPacket {
+    pub fn read_packet(&self, info: PacketInformation, data: &[u8]) -> Result<McPacket, ()> {
         println!("reading packet_id {} in {:?} state", info.id, self.state);
         match self.state {
             ConnectionState::Handshaking => HandshakingPaketFactory::unpack(info, data),
@@ -81,10 +83,10 @@ impl<'a> Connection<'a> {
         }
     }
 
-    pub fn handle_packet(&mut self, packet: ServerPacket) {
+    pub fn handle_packet(&mut self, packet: Result<McPacket, ()>) {
         println!("got {:?}", packet);
         match packet {
-            ServerPacket::ClientHandshake(handshake) => {
+            Ok(McPacket::ClientHandshake(handshake)) => {
                 match handshake.next_state.get_value() {
                     1 => {
                         self.state = ConnectionState::Status;
@@ -99,8 +101,11 @@ impl<'a> Connection<'a> {
                     }
                 }
             },
-            ServerPacket::LoginStart(_/*start_packet*/) => {
+            Ok(McPacket::LoginStart(_)) => {
 
+            },
+            Err(_) => {
+                println!("ERROR DECODING");
             }
         }
     }

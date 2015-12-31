@@ -17,11 +17,6 @@ pub fn read_packet_information(data: &[u8]) -> PacketInformation {
     }
 }
 
-pub fn size_of_string(str: &String) -> usize {
-    let size = str.len();
-    return size + size_of_varint(size as u64);
-}
-
 pub fn size_of_varint(value: u64) -> usize {
     let mut curr = value;
     let mut length = 0;
