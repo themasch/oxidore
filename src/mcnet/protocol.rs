@@ -1,6 +1,6 @@
 use mcnet::utils::size_of_varint;
-use mcnet::input::InputBuffer;
-use mcnet::input::OutputBuffer;
+use mcnet::buffer::InputBuffer;
+use mcnet::buffer::OutputBuffer;
 use mcnet::types::VarInt;
 use mcnet::field::PacketField;
 use mcnet::packet::*;

@@ -1,7 +1,7 @@
 #[macro_use]
 pub mod packet;
 pub mod utils;
-pub mod input;
+pub mod buffer;
 pub mod types;
 pub mod field;
 pub mod protocol;

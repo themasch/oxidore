@@ -1,6 +1,6 @@
 use mcnet::types::VarInt;
-use mcnet::input::OutputBuffer;
-use mcnet::input::InputBuffer;
+use mcnet::buffer::OutputBuffer;
+use mcnet::buffer::InputBuffer;
 
 pub trait PacketField<'a> {
     fn write_to(&self, buffer: &mut OutputBuffer);
