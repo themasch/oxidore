@@ -11,58 +11,15 @@ use std::io::prelude::*;
 use mcnet::utils::read_packet_information;
 use mcnet::utils::size_of_varint;
 use mcnet::packet::PacketInformation;
-use mcnet::protocol::LoginStart;
-use mcnet::protocol::ClientHandshake;
 use mcnet::protocol::McPacket;
 use mcnet::protocol::Packet;
-
-#[derive(Debug)]
-pub enum ConnectionState {
-    Handshaking,
-//    Play,
-    Status,
-    Login
-}
-
-
-trait PacketFactory {
-    fn unpack(info: PacketInformation, data: &[u8]) -> Result<McPacket, ()>;
-}
-
-pub struct HandshakingPaketFactory;
-impl PacketFactory for HandshakingPaketFactory {
-    fn unpack(info: PacketInformation, data: &[u8]) -> Result<McPacket, ()> {
-        match info.id {
-            0 => { // ClientHandshake
-                ClientHandshake::unpack(data)
-            },
-            _ => {
-                panic!("unknown packet_id: {}", info.id);
-            }
-        }
-    }
-}
-pub struct LoginPaketFactory;
-impl PacketFactory for LoginPaketFactory {
-    fn unpack(info: PacketInformation, data: &[u8]) -> Result<McPacket, ()> {
-        match info.id {
-            0 => { // LoginStart
-                LoginStart::unpack(data)
-            },
-            _ => {
-                panic!("unknown packet_id: {}", info.id);
-            }
-        }
-    }
-}
+use mcnet::protocol::PacketFactory;
+use mcnet::protocol::ConnectionState;
 
 pub struct Connection<'a> {
     state: ConnectionState,
     stream: &'a mut TcpStream
 }
-
-
-
 
 impl<'a> Connection<'a> {
     pub fn create(stream: &mut TcpStream) -> Connection {
@@ -74,13 +31,8 @@ impl<'a> Connection<'a> {
 
     pub fn read_packet(&self, info: PacketInformation, data: &[u8]) -> Result<McPacket, ()> {
         println!("reading packet_id {} in {:?} state", info.id, self.state);
-        match self.state {
-            ConnectionState::Handshaking => HandshakingPaketFactory::unpack(info, data),
-            ConnectionState::Login => LoginPaketFactory::unpack(info, data),
-            _ => {
-                panic!("not supported yet");
-            }
-        }
+
+        PacketFactory::unpack(&self.state, info, data)
     }
 
     pub fn handle_packet(&mut self, packet: Result<McPacket, ()>) {
